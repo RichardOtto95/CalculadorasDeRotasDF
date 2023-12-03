@@ -7,16 +7,10 @@ def index():
     nodes = []
     
     for city in cities:
-        nodes.append({'id': city['id'],'label': city['name'],'x': (city['coordinates']['x'] / 2),'y': (city['coordinates']['y'] / 2),})        
+        nodes.append({'id': city['id'],'label': city['name'],'x': (city['coordinates']['x'] ),'y': (city['coordinates']['y'] ),})        
 
     # print(nodes)
     return render_template('index.html', nodes = nodes, cities = cities)
-
-# Configuração para servir arquivos estáticos
-# @app.route('/static/<path:filename>')
-# def servir_arquivo_estatico(filename):
-#     root_dir = os.path.dirname(os.getcwd())
-#     return send_from_directory(os.path.join(root_dir, 'static'), filename)
 
 cities = [
     {
@@ -38,7 +32,7 @@ cities = [
         "name":"Taguatinga",  
         "coordinates": {
             'x':418,
-            'y':328
+            'y':470
             # 'x':418,
             # 'y':328
         },
@@ -51,8 +45,8 @@ cities = [
         "id": 3,
         "name":"Brazlândia",  
         "coordinates": {
-            'x':0,
-            'y':0
+            'x':266,
+            'y':285
         },
         "geolocation": {
             "lat":-15.680762,

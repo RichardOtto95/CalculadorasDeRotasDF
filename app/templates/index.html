@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizador de Grafo com Canvas</title>
     <style>
+        .container {
+            width: 100%;
+            height: 800px;
+            display: flex;
+            justify-content: center;
+        }
         canvas {
             border: 1px solid #ccc;
             background-image: url("../static/mapa.png");
@@ -14,13 +20,14 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="700" height="400"></canvas>
+    <div class="container">
+        <canvas id="canvas" width="1400" height="800"></canvas>
+    </div>
     <script>
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            var canvas = document.getElementById('canvas');
-            var ctx = canvas.getContext('2d');
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
 
+        document.addEventListener('DOMContentLoaded', function() {
             function drawNode(x, y, texto) {
                 var padding = 10;
                 var cantoArredondado = 10;
@@ -36,35 +43,57 @@
                 ctx.arcTo(x + larguraRetangulo, y, x + larguraRetangulo, y + alturaRetangulo, cantoArredondado);
                 ctx.arcTo(x + larguraRetangulo, y + alturaRetangulo, x, y + alturaRetangulo, cantoArredondado);
                 ctx.arcTo(x, y + alturaRetangulo, x, y, cantoArredondado);
-                ctx.arcTo(x, y, x + larguraRetangulo, y, cantoArredondado);
+                ctx.arcTo(x, y, x + larguraRetangulo, y, 1);
+                ctx.shadowOffsetX = 5;
+                ctx.shadowOffsetY = 5;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
                 ctx.closePath();
 
-                ctx.fillStyle = '#E6E6E6';  // Cor de preenchimento
+                ctx.fillStyle = '#a6a6a6';  // Cor de preenchimento
                 ctx.fill();
 
-                ctx.fillStyle = '#000';  // Cor do texto
+                ctx.fillStyle = '#fff';  // Cor do texto
                 ctx.fillText(texto, x + padding, y + alturaRetangulo / 1.6);
             };
 
-            function drawEdge(x1, y1, x2, y2) {
+            function drawEdge(x1, y1, x2, y2, text) {
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 2;
                 ctx.stroke();
+                drawNode(((x1+x2)/2),((y1+y2)/2), text)
             }
             
             var sNodes = '{{ nodes | tojson }}';
 
             var nodes = JSON.parse(sNodes);
 
+            // var nodes = [];
+
             var edges = [
-                {from: 1, to: 2}
+                {from: 1, to: 2, value: 5},
+                {from: 2, to: 3, value: 7}
             ];
+
+            for (var edge of edges){
+                var fromNode = nodes.find(node => node.id === edge.from);
+                var toNode = nodes.find(function(node) {return node.id === edge.to});
+                console.log(`from: ${JSON.stringify(fromNode)}\nto: ${JSON.stringify(toNode)}`)
+                drawEdge(
+                    fromNode.x,
+                    fromNode.y,
+                    toNode.x,
+                    toNode.y,
+                    edge.value.toString()
+                );
+            }
+
             nodes.forEach(function(node) {
                 console.log(`x: ${node.x}, y: ${node.y}`)
-                drawNode(node.x, node.y, node.label);
+                drawNode(node.x, node.y, `${node.id} -${node.label}`);
             });
 
         });
