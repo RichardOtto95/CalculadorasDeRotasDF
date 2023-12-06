@@ -1,57 +1,73 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, request, url_for
 import heapq
 
 app = Flask(__name__)
 
+
 @app.route('/')
 def index():
-    # nodes = []
-    # for city in cities:
-    #     nodes.append({'id': city['id'],'label': city['name'],'x': (city['coordinates']['x'] ),'y': (city['coordinates']['y'] ),})        
+    dijkstra = {
+        "path": [],
+        "distance":0
+    }
 
-    # for vertice in grafo.vertices:
-    #     print(f'vertice: {vertice}')
-    #     print(f'data: {grafo.vertices[vertice]}')
+    if 'origem' in request.args and 'destino' in request.args:
+        origem_id = request.args.get('origem', "0")
+        destino_id = request.args.get('destino', "0")
+        dijkstra = grafo.dijkstra(int(origem_id), int(destino_id))
 
-    return render_template('index.html', nodes = grafo.vertices, cities = cities, paths = paths)
+    return render_template('index.html', nodes=grafo.vertices, cities=cities, paths=paths, rotas=dijkstra["path"], distancia=dijkstra["distance"])
+
+@app.route('/rota')
+def rota():
+    origem_id = request.args.get('origem', '0')
+    destino_id = request.args.get('destino', '0')
+    return redirect(url_for('index', origem=origem_id, destino=destino_id))
 
 class Grafo:
     def __init__(self):
         self.vertices = {}
-    
+        
     def adicionar_vertice(self, vertice):
-        # print(f"id: {vertice["id"]}\nkeys: {self.vertices.keys}")
-        if not self.vertices.__contains__(vertice["id"]):
+        if vertice["id"] not in self.vertices:
             self.vertices[vertice["id"]] = vertice
 
     def adicionar_aresta(self, idOrigem, idDestino, distancia, tempo, arestaId):
-        if  self.vertices.__contains__(idOrigem) and   self.vertices.__contains__(idDestino):
+        if idOrigem in self.vertices and idDestino in self.vertices:
             self.vertices[idOrigem]["paths"].append({"id": arestaId,"from": idOrigem, "to": idDestino, "distance": distancia, "time": tempo})
             self.vertices[idDestino]["paths"].append({"id": arestaId,"from": idDestino, "to": idOrigem, "distance": distancia, "time": tempo})
 
-    def dijkstra(self, vertice_origem, vertice_destino):
-        distancias = {vertice: float('inf') for vertice in self.vertices}
-        distancias[vertice_origem] = 0
+    def dijkstra(self, inicio, fim):
+        distancia = {v: float('infinity') for v in self.vertices}
+        distancia[inicio] = 0
+        visitados = set()
 
-        fila_prioridade = [(0, vertice_origem)]
+        while len(visitados) < len(self.vertices):
+            atual = min((v for v in self.vertices if v not in visitados), key=lambda v: distancia[v])
+            visitados.add(atual)
 
-        while fila_prioridade:
-            distancia_atual, vertice_atual = heapq.heappop(fila_prioridade)
+            for vizinho in self.vertices[atual]["paths"]:
+                peso = vizinho["distance"]
+                proximo_vertice = vizinho["to"]
 
-            if distancia_atual > distancias[vertice_atual]:
-                continue
+                if distancia[atual] + peso < distancia[proximo_vertice]:
+                    distancia[proximo_vertice] = distancia[atual] + peso
 
-            if vertice_atual == vertice_destino:
-                break  # Parar quando o destino for alcançado
+        distancia_total = distancia[fim]
+        caminho_minimo = self.reconstruir_caminho(inicio, fim, distancia)
+        return {"distance": distancia_total,"path": caminho_minimo}
 
-            for vizinho, peso in self.vertices[vertice_atual].items():
-                distancia = distancia_atual + peso
-                if distancia < distancias[vizinho]:
-                    distancias[vizinho] = distancia
-                    heapq.heappush(fila_prioridade, (distancia, vizinho))
-
-        return distancias[vertice_destino]
-
+    def reconstruir_caminho(self, inicio, fim, distancia):
+        caminho_minimo = []
+        atual = fim
+        while atual is not None:
+            caminho_minimo.insert(0, atual)
+            vizinhos = [v for v in self.vertices[atual]["paths"] if distancia[v["to"]] == distancia[atual] - v["distance"]]
+            if vizinhos:
+                atual = vizinhos[0]["to"]
+            else:
+                atual = None
+        return caminho_minimo
 
 cities = [
     {

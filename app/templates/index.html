@@ -25,23 +25,23 @@
 </head>
 <body>
     <div class="container">
-        <form style="margin: 30px 30px">
+        <form method="post" action="{{ url_for('index') }}" style="margin: 30px 30px">
             <label for="cities">Origem:</label>
             <select id="origin" name="origin">
                 {% for city in cities %}
-                    <option value="{{ city.name }}">{{ city.name }}</option>
+                <option value="{{ city.name }}">{{ city.name }}</option>
                 {% endfor %}
             </select>
             <label for="cities">Destino:</label>
             <select id="destiny" name="destiny">
                 {% for city in cities %}
-                    <option value="{{ city.name }}">{{ city.name }}</option>
+                <option value="{{ city.name }}">{{ city.name }}</option>
                 {% endfor %}
             </select>
             <button type="button" id="btnEnviar" onclick="enviarFormulario()">Enviar</button>
         </form>
         <div class="row">
-            <canvas id="canvas" width="1400" height="800"></canvas>
+            <canvas id="canvas" width="1300" height="810"></canvas>
             <div>
                 <ul>
                     {% for nodeId, node in nodes.items() %}
@@ -50,12 +50,13 @@
                 </ul>
                 <ul>
                     {% for path in paths %}
-                    <li>De {{path['from']}} até {{path['to']}}: {{path['distance']}}Km, {{path['time']}}min</li>
+                    <li>De {{path['from']}} até {{path['to']}}: {{path['distance']}} Km, {{path['time']}} Min</li>
                     {% endfor %}
                 </ul>
             </div>
         </div>
     </div>
+    <!-- <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script> -->
     <script>
         var canvas = document.getElementById('canvas');
         var ctx = canvas.getContext('2d');
@@ -103,31 +104,65 @@
             var oriEle = document.getElementById('origin');
             var desEle = document.getElementById('destiny');
 
-            // console.log(`Origin: ${oriEle.selectedIndex}\nDestiny: ${desEle.selectedIndex}`);
+            var oriInd = oriEle.selectedIndex;
+            var desInd = desEle.selectedIndex;
 
             var oriVal = oriEle.options[oriEle.selectedIndex].value;
             var desVal = desEle.options[desEle.selectedIndex].value;
 
-            // console.log(`Valores Selecionados: ${oriVal}, ${desVal}`, );
+            oriInd++;
+            desInd++;
+
+            console.log(`Id's Selecionados: ${oriInd}, ${desInd}`, );
+            console.log(`Valores Selecionados: ${oriVal}, ${desVal}`, );
+            
+            var novaURL = '/rota?origem=' + encodeURIComponent(oriInd) + '&destino=' + encodeURIComponent(desInd);
+            window.location.href = novaURL;
+
+            // var xhr = new XMLHttpRequest();
+
+            // // Construção da URL com os parâmetros
+            // var url = '/?origem=' + encodeURIComponent(oriInd) + '&destino=' + encodeURIComponent(desInd);
+
+            // // Configuração da requisição AJAX
+            // xhr.open('POST', url, true);
+
+            // // Definição da função de callback para processar a resposta
+            // // xhr.onload = function() {
+            // //     if (xhr.status === 200) {
+            // //         // Exibição da resposta no console (pode ser alterado conforme necessário)
+            // //         console.log(JSON.parse(xhr.responseText));
+            // //     } else {
+            // //         console.log('Erro na requisição. Status:', xhr.status);
+            // //     }
+            // // };
+
+            // // Envio da requisição
+            // xhr.send();
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             var sNodes = '{{ nodes | tojson }}';
-
             var nodes = JSON.parse(sNodes);
+            
+            var sRota = '{{ rotas | tojson }}';
+            var rotas = JSON.parse(sRota);
 
-            // console.log(`nodes: ${JSON.stringify(nodes)}`)
+            if (rotas){
+                for (var rota in rotas){
+                    console.log(`rota: ${rota}`);
+                    console.log(`rota: ${nodes[rota]}`);
+                    newNodes[rota] = nodes[rota]
+                }
+                nodes = newNodes
+            }
 
             for (let i = 1; i <= 15; i++) {
                 node = nodes[i]
-                console.log(`node: ${JSON.stringify(node)}`)
+                // console.log(`node: ${JSON.stringify(node)}`)
                 for (let path of node.paths) {
                     var fromNode = nodes[path.from];
-                    // var fromNode = nodes.find(node => node.id === path.from);
                     var toNode = nodes[path.to];
-                    // var toNode = nodes.find(function(node) {return node.id === edge.to});
-                    // console.log(`fromnode: ${JSON.stringify(fromNode)}`)
-                    // console.log(`tonode: ${JSON.stringify(toNode)}`)
                     drawEdge(
                         fromNode.coordinates.x,
                         fromNode.coordinates.y,
