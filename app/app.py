@@ -15,6 +15,8 @@ def index():
 
     carregar_cidades_caminhos()
 
+    # grafo.remover_vertice(1)
+
     if 'origem' in request.args and 'destino' in request.args:
         origem_id = request.args.get('origem', "0")
         destino_id = request.args.get('destino', "0")
@@ -33,7 +35,33 @@ def rota():
     origem_id = request.args.get('origem', '0')
     destino_id = request.args.get('destino', '0')
     return redirect(url_for('index', origem=origem_id, destino=destino_id))
+    
+@app.route('/removido')
+def removido():
+    data = {
+        "nodes": {},
+        "distance": 0,
+        "time": 0,
+        "paths": [],
+        "url": '',
+    }
 
+    carregar_cidades_caminhos()
+
+    grafo.remover_vertice(request.args.get('removido', "0"))
+
+    if 'origem' in request.args and 'destino' in request.args:
+        origem_id = request.args.get('origem', "0")
+        destino_id = request.args.get('destino', "0")
+        data["distance"], caminho = grafo.dijkstra(int(origem_id), int(destino_id))
+        data["nodes"], data["paths"], data["time"] = grafo.carregar_rota(caminho)
+
+        data["url"] = grafo.rota_google(data["nodes"])
+    else:
+        data["nodes"] = grafo.vertices 
+        data["paths"] = grafo.pegar_caminhos()
+
+    return render_template('index.html', nodes=data["nodes"], cities=cities, paths=data["paths"], distancia=data["distance"], tempo=data["time"], url=data["url"])
 
 class Grafo:
     def __init__(self):
@@ -44,11 +72,11 @@ class Grafo:
             self.vertices[vertice["id"]] = vertice
 
     def remover_vertice(self, vertice_id):
-        for chave in self.vertices.items():
-            if chave == vertice_id:
-                for caminho in self.vertices[vertice_id]["paths"]:
-                    if caminho["to"] == vertice_id:
-                        self.vertices[vertice_id]["paths"].remove(caminho)
+        for chave, vertice in self.vertices.items():
+            for caminho in vertice["paths"]:
+                if caminho["to"] == vertice_id:
+                    self.vertices[chave]["paths"].remove(caminho)
+        self.vertices.pop(vertice_id)
 
 
     def adicionar_aresta(self, idOrigem, idDestino, distancia, tempo, arestaId):

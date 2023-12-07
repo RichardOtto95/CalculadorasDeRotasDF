@@ -31,6 +31,13 @@
 <body>
     <div class="container">
         <form method="post" action="{{ url_for('index') }}" style="margin: 30px 30px">
+            <label for="cities">Remover:</label>
+            <select id="remover" name="remover">
+                {% for city in cities %}
+                <option value="{{ city.id }}">{{ city.id }} - {{ city.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="btnEnviar" onclick="remover()">Remover</button>
             <label for="cities">Origem:</label>
             <select id="origin" name="origin">
                 {% for city in cities %}
@@ -134,6 +141,17 @@
             var novaURL = '/rota?origem=' + encodeURIComponent(oriInd) + '&destino=' + encodeURIComponent(desInd);
             window.location.href = recarregar? '/' : novaURL;
 
+
+        }
+
+        function remover() {
+            var remEle = document.getElementById('remover');
+
+            var remInd = oriEle.selectedIndex;
+            
+            var novaURL = '/removido?removido=' + encodeURIComponent(remInd);
+
+            window.location.href = novaURL;
 
         }
 
