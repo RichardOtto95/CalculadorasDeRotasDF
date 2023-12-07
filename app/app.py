@@ -1,28 +1,39 @@
 from flask import Flask, render_template, redirect, request, url_for
-import heapq
 
 app = Flask(__name__)
 
 
 @app.route('/')
 def index():
-    dijkstra = {
-        "path": [],
-        "distance":0
+    data = {
+        "nodes": {},
+        "distance": 0,
+        "time": 0,
+        "paths": [],
+        "url": '',
     }
+
+    carregar_cidades_caminhos()
 
     if 'origem' in request.args and 'destino' in request.args:
         origem_id = request.args.get('origem', "0")
         destino_id = request.args.get('destino', "0")
-        dijkstra = grafo.dijkstra(int(origem_id), int(destino_id))
+        data["distance"], caminho = grafo.dijkstra(int(origem_id), int(destino_id))
+        data["nodes"], data["paths"], data["time"] = grafo.carregar_rota(caminho)
 
-    return render_template('index.html', nodes=grafo.vertices, cities=cities, paths=paths, rotas=dijkstra["path"], distancia=dijkstra["distance"])
+        data["url"] = grafo.rota_google(data["nodes"])
+    else:
+        data["nodes"] = grafo.vertices 
+        data["paths"] = grafo.pegar_caminhos()
+
+    return render_template('index.html', nodes=data["nodes"], cities=cities, paths=data["paths"], distancia=data["distance"], tempo=data["time"], url=data["url"])
 
 @app.route('/rota')
 def rota():
     origem_id = request.args.get('origem', '0')
     destino_id = request.args.get('destino', '0')
     return redirect(url_for('index', origem=origem_id, destino=destino_id))
+
 
 class Grafo:
     def __init__(self):
@@ -31,6 +42,14 @@ class Grafo:
     def adicionar_vertice(self, vertice):
         if vertice["id"] not in self.vertices:
             self.vertices[vertice["id"]] = vertice
+
+    def remover_vertice(self, vertice_id):
+        for chave in self.vertices.items():
+            if chave == vertice_id:
+                for caminho in self.vertices[vertice_id]["paths"]:
+                    if caminho["to"] == vertice_id:
+                        self.vertices[vertice_id]["paths"].remove(caminho)
+
 
     def adicionar_aresta(self, idOrigem, idDestino, distancia, tempo, arestaId):
         if idOrigem in self.vertices and idDestino in self.vertices:
@@ -43,7 +62,7 @@ class Grafo:
         visitados = set()
 
         while len(visitados) < len(self.vertices):
-            atual = min((v for v in self.vertices if v not in visitados), key=lambda v: distancia[v])
+            atual = min((v for v in self.vertices if v not in visitados), key=distancia.get)
             visitados.add(atual)
 
             for vizinho in self.vertices[atual]["paths"]:
@@ -55,7 +74,7 @@ class Grafo:
 
         distancia_total = distancia[fim]
         caminho_minimo = self.reconstruir_caminho(inicio, fim, distancia)
-        return {"distance": distancia_total,"path": caminho_minimo}
+        return distancia_total, caminho_minimo
 
     def reconstruir_caminho(self, inicio, fim, distancia):
         caminho_minimo = []
@@ -68,14 +87,64 @@ class Grafo:
             else:
                 atual = None
         return caminho_minimo
+    
+    def carregar_rota(self, vertices):
+        novos_vertices = {}
+        novos_caminhos = []
+        tempo_total = 0
+        for posicao_vertice in range(len(vertices)):
+            id_vertice_atual = vertices[posicao_vertice]
+            vertice_atual = {}
 
+            for key, vertice in self.vertices.items():
+                if id_vertice_atual == key:
+                    vertice_atual = vertice
+
+            if id_vertice_atual != vertices[-1]:
+                id_proximo_vertice = vertices[posicao_vertice+1]
+
+                for path in vertice_atual["paths"]:
+                    if path["from"] == id_vertice_atual and path["to"] == id_proximo_vertice:
+                        vertice_atual["paths"] = [path]
+                        novos_caminhos.append(path)
+                        tempo_total = tempo_total + path["time"]
+                        break
+            else:
+                vertice_atual["paths"] = []
+            novos_vertices[id_vertice_atual] = vertice_atual
+
+        return novos_vertices, novos_caminhos, tempo_total
+    
+    def pegar_caminhos(self):
+        caminhos = []
+        for chave, vertice in self.vertices.items():
+
+            for caminho in vertice["paths"]:
+                ja_tem = False
+                ids_vertices = [caminho["from"], caminho["to"]]
+
+                for cam in caminhos:
+                    if cam["from"] in ids_vertices and cam["to"] in ids_vertices:
+                        ja_tem = True
+
+                if not ja_tem:
+                    caminhos.append(caminho)
+
+        return caminhos
+    
+    def rota_google(self, vertices):
+        url = 'https://www.google.com.br/maps/dir/'
+        for chave, vertice in vertices.items():
+            url += f"{vertice["geolocation"]["lat"],vertice["geolocation"]["lon"]}/"
+        return url
+                
 cities = [
     {
         "id": 1,
         "name":"Gama",  
         "coordinates": {            
-            'x':442,
-            'y':613
+            'x':611,
+            'y':725
         },
         "geolocation": {
             "lat":-15.959459,
@@ -87,8 +156,8 @@ cities = [
         "id": 2,
         "name":"Taguatinga",  
         "coordinates": {
-            'x':406,
-            'y':454
+            'x':591,
+            'y':417
         },
         "geolocation": {
             "lat":-15.833188,
@@ -100,8 +169,8 @@ cities = [
         "id": 3,
         "name":"Brazlândia",  
         "coordinates": {
-            'x':266,
-            'y':285
+            'x':291,
+            'y':80
         },
         "geolocation": {
             "lat":-15.680762,
@@ -113,8 +182,8 @@ cities = [
         "id": 4,
         "name":"Estrutural",  
         "coordinates": {
-            'x':493,
-            'y':391
+            'x':722,
+            'y':274
         },
         "geolocation": {
             "lat":-15.781653,
@@ -126,8 +195,8 @@ cities = [
         "id": 5,
         "name":"Vicente_pires",  
         "coordinates": {
-            'x':446,
-            'y':429
+            'x':653,
+            'y':333
         },
         "geolocation": {
             "lat":-15.808725,
@@ -139,8 +208,8 @@ cities = [
         "id": 6,
         "name":"Cruzeiro",  
         "coordinates": {
-            'x':572,
-            'y':419
+            'x':858,
+            'y':310
         },
         "geolocation": {
             "lat":-15.793829,
@@ -152,8 +221,8 @@ cities = [
         "id": 7,
         "name":"Águas_Claras",  
         "coordinates": {
-            'x':457,
-            'y':469
+            'x':664,
+            'y':431
         },
         "geolocation": {
             "lat":-15.840042,
@@ -165,8 +234,8 @@ cities = [
         "id":8,
         "name":"Ceilândia",  
         "coordinates": {
-            'x':306,
-            'y':446
+            'x':492,
+            'y':378
         },
         "geolocation": {
             "lat":-15.819392,
@@ -178,8 +247,8 @@ cities = [
         "id": 9,
         "name":"Guará",  
         "coordinates": {
-            'x':516,
-            'y':476
+            'x':763,
+            'y':422
         },
         "geolocation": {
             "lat":-15.815048,
@@ -191,8 +260,8 @@ cities = [
         "id": 10,
         "name":"Samambaia",  
         "coordinates": {
-            'x':351,
-            'y':537
+            'x':535,
+            'y':502
         },
         "geolocation": {
             "lat":-15.873742,
@@ -204,8 +273,8 @@ cities = [
         "id": 11,
         "name":"Águas_lindas",  
         "coordinates": {
-            'x':142,
-            'y':375
+            'x':146,
+            'y':242
         },
         "geolocation": {
             "lat":-15.735889,
@@ -217,8 +286,8 @@ cities = [
         "id": 12,
         "name":"São_Sebastião",  
         "coordinates": {
-            'x':703,
-            'y':524
+            'x':1120,
+            'y':508
         },
         "geolocation": {
             "lat":-15.885826,
@@ -230,8 +299,8 @@ cities = [
         "id": 13,
         "name":"Recanto_das_Emas",  
         "coordinates": {
-            'x':377,
-            'y':566
+            'x':587,
+            'y':587
         },
         "geolocation": {
             "lat":-15.901852,
@@ -243,8 +312,8 @@ cities = [
         "id": 14,
         "name":" Asa_sul",  
         "coordinates": {
-            'x':599,
-            'y':459
+            'x':932,
+            'y':382
         },
         "geolocation": {
             "lat":-15.812628,
@@ -256,8 +325,8 @@ cities = [
         "id": 15,
         "name":" Asa_norte",  
         "coordinates": {
-            'x':623,
-            'y':384
+            'x':977,
+            'y':259
         },
         "geolocation": {
             "lat":-15.764431,
@@ -267,143 +336,147 @@ cities = [
     },
 ]
 
-
 paths = [
     {
         "id": "a",
         "from": 1, 
         "to": 13, 
-        "distance": 10, 
-        "time": 10
+        "time": 10, 
+        "distance": 10,
     },
     {
         "id": "b",
         "from": 13, 
         "to": 10, 
-        "distance": 12, 
-        "time": 8.6
+        "time": 12, 
+        "distance": 8,
     },
      {
         "id": "c",
         "from": 10, 
         "to": 8, 
-        "distance": 14, 
-        "time": 9.4
+        "time": 14, 
+        "distance": 9,
     },
      {
         "id": "d",
         "from": 10, 
         "to": 2, 
-        "distance": 13, 
-        "time": 9.4
+        "time": 13, 
+        "distance": 9,
     },
      {
         "id": "e",
         "from": 8, 
         "to": 2, 
-        "distance": 12, 
-        "time": 8.2
+        "time": 12, 
+        "distance": 8,
     },
      {
         "id": "f",
         "from": 8, 
         "to": 11, 
-        "distance":26, 
-        "time": 26.4
+        "time":26, 
+        "distance": 26,
     },
      {
         "id": "g",
         "from": 8, 
         "to": 3, 
-        "distance":30, 
-        "time": 25.8
+        "time":30, 
+        "distance": 25,
     },
      {
         "id": "h",
         "from": 11, 
         "to": 3, 
-        "distance":23, 
-        "time": 11.8
+        "time":23, 
+        "distance": 11,
     },
      {
         "id": "i",
         "from":2, 
         "to": 5, 
-        "distance":11, 
-        "time": 7.8
+        "time":11, 
+        "distance": 7,
     },
      {
         "id": "j",
         "from": 2, 
         "to": 7, 
-        "distance": 8, 
-        "time": 4.3
+        "time": 8, 
+        "distance": 4,
     },
      {
         "id": "k",
         "from": 5, 
         "to": 4, 
-        "distance": 14, 
-        "time": 8.4
+        "time": 14, 
+        "distance": 8,
     },
      {
         "id": "l",
         "from": 7, 
         "to": 9, 
-        "distance": 12, 
-        "time": 8.6
+        "time": 12, 
+        "distance": 8,
     },
      {
         "id": "m",
         "from": 4, 
         "to": 9, 
-        "distance": 10, 
-        "time": 6.1
+        "time": 10, 
+        "distance": 6,
     },
      {
         "id": "n",
         "from": 9, 
         "to": 6, 
-        "distance": 12, 
-        "time": 8.5
+        "time": 12, 
+        "distance": 8,
     },
      {
         "id": "o",
         "from": 6, 
         "to": 15, 
-        "distance": 17, 
-        "time": 12.4
+        "time": 17, 
+        "distance": 12,
     },
      {
         "id": "p",
         "from": 6, 
         "to": 14, 
-        "distance": 13, 
-        "time": 7.9
+        "time": 13, 
+        "distance": 7,
     },
      {
         "id": "q",
         "from": 14, 
         "to": 15, 
-        "distance": 12, 
-        "time": 8.5
+        "time": 12, 
+        "distance": 8,
     },
      {
         "id": "r",
         "from": 14, 
         "to": 12, 
-        "distance": 19, 
-        "time": 17.1
+        "time": 19, 
+        "distance": 17,
     },
 ]
 
+
 grafo = Grafo()
 
-for city in cities:
-    grafo.adicionar_vertice(city)
+def carregar_cidades_caminhos():
+    grafo.vertices = {}
 
-for path in paths:
-    grafo.adicionar_aresta(path["from"],path["to"],path["distance"],path["time"],path["id"])
+    for city in cities:
+        grafo.adicionar_vertice(city)
+
+    for path in paths:
+        grafo.adicionar_aresta(path["from"],path["to"],path["distance"],path["time"],path["id"])
 
 if __name__ == '__main__':
     app.run(debug=True)
+

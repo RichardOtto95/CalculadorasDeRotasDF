@@ -8,18 +8,23 @@
     <style>
         .container {
             width: 100%;
-            height: 800px;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             justify-content: center;
         }
         .row {
             display: flex;
+            justify-content: center;
         }
         canvas {
             display: flex;
             border: 1px solid #ccc;
             background-image: url("../static/mapa.png");
             background-size: cover;
+        }
+        h2, h3 {
+            padding-left: 30px;
         }
     </style>
 </head>
@@ -29,34 +34,43 @@
             <label for="cities">Origem:</label>
             <select id="origin" name="origin">
                 {% for city in cities %}
-                <option value="{{ city.name }}">{{ city.name }}</option>
+                <option value="{{ city.name }}">{{ city.id }} - {{ city.name }}</option>
                 {% endfor %}
             </select>
             <label for="cities">Destino:</label>
             <select id="destiny" name="destiny">
                 {% for city in cities %}
-                <option value="{{ city.name }}">{{ city.name }}</option>
+                <option value="{{ city.name }}">{{ city.id }} - {{ city.name }}</option>
                 {% endfor %}
             </select>
             <button type="button" id="btnEnviar" onclick="enviarFormulario()">Enviar</button>
+            {% if distancia > 0 %}
+            <button type="button" id="btnEnviar" onclick="enviarFormulario(true)">Recarregar</button>
+            {% endif %}
         </form>
         <div class="row">
             <canvas id="canvas" width="1300" height="810"></canvas>
             <div>
+                <h2>Cidades</h2>
                 <ul>
                     {% for nodeId, node in nodes.items() %}
                     <li>{{nodeId}}: {{node['name']}}</li>
                     {% endfor %}
                 </ul>
+                <h2>Caminhos</h2>
                 <ul>
                     {% for path in paths %}
                     <li>De {{path['from']}} até {{path['to']}}: {{path['distance']}} Km, {{path['time']}} Min</li>
                     {% endfor %}
                 </ul>
+                {% if distancia > 0 %}
+                <h3>Distancia total: {{ distancia }} Km</h3>
+                <h3>Tempo total: {{ tempo }} Min</h3>
+                <button type="button" id="google" style="margin-left: 30px;" onclick="abrirComGoogle()">Abrir no google maps</button>
+                {% endif %}
             </div>
         </div>
     </div>
-    <!-- <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script> -->
     <script>
         var canvas = document.getElementById('canvas');
         var ctx = canvas.getContext('2d');
@@ -97,10 +111,9 @@
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
             ctx.stroke();
-            // drawNode(((x1+x2)/2),((y1+y2)/2), text)
         }
 
-        function enviarFormulario() {
+        function enviarFormulario(recarregar = false) {
             var oriEle = document.getElementById('origin');
             var desEle = document.getElementById('destiny');
 
@@ -113,53 +126,28 @@
             oriInd++;
             desInd++;
 
-            console.log(`Id's Selecionados: ${oriInd}, ${desInd}`, );
-            console.log(`Valores Selecionados: ${oriVal}, ${desVal}`, );
-            
+            if (oriInd == desInd && !recarregar){
+                alert("A origem e o destino devem ser diferentes")
+                return;
+            }
+
             var novaURL = '/rota?origem=' + encodeURIComponent(oriInd) + '&destino=' + encodeURIComponent(desInd);
-            window.location.href = novaURL;
+            window.location.href = recarregar? '/' : novaURL;
 
-            // var xhr = new XMLHttpRequest();
 
-            // // Construção da URL com os parâmetros
-            // var url = '/?origem=' + encodeURIComponent(oriInd) + '&destino=' + encodeURIComponent(desInd);
+        }
 
-            // // Configuração da requisição AJAX
-            // xhr.open('POST', url, true);
-
-            // // Definição da função de callback para processar a resposta
-            // // xhr.onload = function() {
-            // //     if (xhr.status === 200) {
-            // //         // Exibição da resposta no console (pode ser alterado conforme necessário)
-            // //         console.log(JSON.parse(xhr.responseText));
-            // //     } else {
-            // //         console.log('Erro na requisição. Status:', xhr.status);
-            // //     }
-            // // };
-
-            // // Envio da requisição
-            // xhr.send();
+        function abrirComGoogle(){
+            window.open("{{ url }}", "_blank")
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             var sNodes = '{{ nodes | tojson }}';
-            var nodes = JSON.parse(sNodes);
-            
-            var sRota = '{{ rotas | tojson }}';
-            var rotas = JSON.parse(sRota);
+            var nodes = Object(JSON.parse(sNodes));
 
-            if (rotas){
-                for (var rota in rotas){
-                    console.log(`rota: ${rota}`);
-                    console.log(`rota: ${nodes[rota]}`);
-                    newNodes[rota] = nodes[rota]
-                }
-                nodes = newNodes
-            }
 
-            for (let i = 1; i <= 15; i++) {
+            for (let i in nodes) {
                 node = nodes[i]
-                // console.log(`node: ${JSON.stringify(node)}`)
                 for (let path of node.paths) {
                     var fromNode = nodes[path.from];
                     var toNode = nodes[path.to];
@@ -173,27 +161,11 @@
                 }
             }
 
-            for (let i = 1; i <= 15; i++) {
+
+            for (let i in nodes) {
                 node = nodes[i];
                 drawNode(node.coordinates.x,node.coordinates.y, `${node.id}`);
             }
-
-            // for (var edge of edges){
-            //     var fromNode = nodes.find(node => node.id === edge.from);
-            //     var toNode = nodes.find(function(node) {return node.id === edge.to});
-            //     // console.log(`from: ${JSON.stringify(fromNode)}\nto: ${JSON.stringify(toNode)}`)
-            //     drawEdge(
-            //         fromNode.x,
-            //         fromNode.y,
-            //         toNode.x,
-            //         toNode.y,
-            //         edge.value.toString()
-            //     );
-            // }
-
-            // nodes.forEach(function(node) {
-            //     drawNode(node.x, node.y, `${node.id} - ${node.label}`);
-            // });
         });
     </script>
 </body>
